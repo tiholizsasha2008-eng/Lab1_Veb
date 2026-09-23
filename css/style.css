@@ -1,0 +1,137 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+}
+
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #4a3e3d;            
+    background-color: #fff9f5; 
+}
+
+header {
+    background-color: #f7d6c8; 
+    color: #5c3a31;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    border-bottom: 2px solid #e2b29f;
+}
+
+header h1 {
+    margin: 0 0 1rem 0;
+    font-size: 2rem;
+}
+
+header nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+header nav li {
+    display: inline;
+    margin-right: 15px; 
+}
+
+header nav a {
+    color: #5c3a31;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+main {
+    max-width: 800px; 
+    margin: 2rem auto; 
+    padding: 0 1rem;  
+}
+
+section {
+    background-color: #ffffff;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem; 
+    border-radius: 10px;
+    border: 1px solid #ebd0c5;
+}
+
+main {
+    max-width: 800px; 
+    margin: 2rem auto; 
+    padding: 0 1rem;   
+}
+
+section {
+    background-color: #ffffff;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem; 
+    border-radius: 10px;
+    border: 1px solid #ebd0c5;
+}
+
+.wish-card {
+    background-color: #ffffff;
+    padding: 14px;
+    border: 1px solid #ebd0c5;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 5px rgba(212, 163, 115, 0.15);
+}
+
+.wish-card h3 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    color: #5c3a31;
+}
+
+.wish-card img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+}
+
+.wish-card strong {
+    color: #d4a373;
+}
+
+.wish-card.is-purchased {
+    opacity: 0.6;
+}
+
+.wish-card.is-purchased h3 {
+    text-decoration: line-through;
+}
+
+aside, #summary {
+    background-color: #fff1e6;
+    border: 1px solid #f2cc8f;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+aside h2, #summary h2 {
+    margin-top: 0;
+    color: #5c3a31;
+}
+
+#summary strong,
+aside strong {
+    font-size: 1.8rem;
+    color: #d4a373;
+}
+
+footer {
+    text-align: center;
+    padding: 1.5rem 1rem;
+    font-size: 0.875rem;
+    color: #8c7a76;
+    border-top: 1px solid #ebd0c5;
+    margin-top: 3rem;
+}
