@@ -6,9 +6,6 @@
 
 body {
     margin: 0;
-}
-
-body {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 1rem;
     line-height: 1.5;
@@ -16,16 +13,25 @@ body {
     background-color: #fff9f5; 
 }
 
+img {
+    max-width: 100%;
+    height: auto;
+}
+
 header {
     background-color: #f7d6c8; 
     color: #5c3a31;
     padding: 1.5rem 1rem;
-    text-align: center;
     border-bottom: 2px solid #e2b29f;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 header h1 {
-    margin: 0 0 1rem 0;
+    margin: 0;
     font-size: 2rem;
 }
 
@@ -33,11 +39,9 @@ header nav ul {
     list-style: none;
     padding: 0;
     margin: 0;
-}
-
-header nav li {
-    display: inline;
-    margin-right: 15px; 
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
 }
 
 header nav a {
@@ -46,10 +50,16 @@ header nav a {
     font-weight: bold;
 }
 
-main {
-    max-width: 800px; 
-    margin: 2rem auto; 
-    padding: 0 1rem;  
+.layout {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
 }
 
 section {
@@ -65,7 +75,6 @@ section {
     padding: 14px;
     border: 1px solid #ebd0c5;
     border-radius: 10px;
-    margin-bottom: 1rem;
     box-shadow: 0 2px 5px rgba(212, 163, 115, 0.15);
 }
 
@@ -76,8 +85,6 @@ section {
 }
 
 .wish-card img {
-    max-width: 100%;
-    height: auto;
     border-radius: 6px;
 }
 
@@ -120,4 +127,22 @@ footer {
     color: #8c7a76;
     border-top: 1px solid #ebd0c5;
     margin-top: 3rem;
+}
+
+@media (min-width: 600px) {
+    .cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .layout {
+        display: grid;
+        grid-template-columns: 3fr 1fr;
+        gap: 24px;
+    }
+
+    .cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }
