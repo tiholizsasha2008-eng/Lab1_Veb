@@ -140,6 +140,7 @@ footer {
         display: grid;
         grid-template-columns: 3fr 1fr;
         gap: 24px;
+        padding: 0 2rem;
     }
 
     .cards {
