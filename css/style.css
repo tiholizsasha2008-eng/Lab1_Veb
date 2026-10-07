@@ -52,9 +52,7 @@ body {
     background-color: var(--color-bg);
 }
 
-h1,
-h2,
-h3 {
+h1, h2, h3 {
     font-family: var(--font-heading);
     line-height: 1.25;
     color: var(--color-heading);
