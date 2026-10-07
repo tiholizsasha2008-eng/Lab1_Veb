@@ -4,13 +4,76 @@
     box-sizing: border-box;
 }
 
+:root {
+    --color-bg: #fff9f5;
+    --color-surface: #ffffff;
+    --color-secondary: #f7d6c8;
+    --color-secondary-soft: #fff1e6;
+    --color-border: #ebd0c5;
+    --color-border-strong: #e2b29f;
+    --color-gold: #f2cc8f;
+    --color-input-border: #8c6f68;
+
+    --color-text: #4a3e3d;
+    --color-text-muted: #6b5b58;
+    --color-heading: #5c3a31;
+
+    --color-primary: #a8442f;
+    --color-primary-dark: #8a3322;
+
+    --color-priority-high: #9b2c2c;
+    --color-priority-high-bg: #fdecec;
+    --color-priority-medium: #7a4e00;
+    --color-priority-medium-bg: #fff3d6;
+    --color-priority-low: #2f6b4f;
+    --color-priority-low-bg: #e6f4ec;
+
+    --font-heading: Georgia, 'Times New Roman', serif;
+    --font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+    --fs-small: 0.875rem;
+    --fs-base: 1rem;
+    --fs-h3: 1.25rem;
+    --fs-h2: 1.75rem;
+    --fs-h1: 2.25rem;
+
+    --space-1: 0.5rem;
+    --space-2: 1rem;
+    --space-3: 1.5rem;
+    --page-pad: 1rem;
+}
+
 body {
     margin: 0;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-size: 1rem;
+    font-family: var(--font-body);
+    font-size: var(--fs-base);
     line-height: 1.5;
-    color: #4a3e3d;
-    background-color: #fff9f5;
+    color: var(--color-text);
+    background-color: var(--color-bg);
+}
+
+h1,
+h2,
+h3 {
+    font-family: var(--font-heading);
+    line-height: 1.25;
+    color: var(--color-heading);
+}
+
+h1 {
+    font-size: var(--fs-h1);
+}
+
+h2 {
+    font-size: var(--fs-h2);
+}
+
+h3 {
+    font-size: var(--fs-h3);
+}
+
+p {
+    max-width: 65ch;
 }
 
 img {
@@ -19,10 +82,10 @@ img {
 }
 
 header {
-    background-color: #f7d6c8;
-    color: #5c3a31;
-    padding: 1.5rem 1rem;
-    border-bottom: 2px solid #e2b29f;
+    background-color: var(--color-secondary);
+    color: var(--color-heading);
+    padding: var(--space-3) max(var(--page-pad), calc((100% - 1200px) / 2 + var(--page-pad)));
+    border-bottom: 2px solid var(--color-border-strong);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -32,7 +95,6 @@ header {
 
 header h1 {
     margin: 0;
-    font-size: 2rem;
 }
 
 header nav ul {
@@ -41,55 +103,191 @@ header nav ul {
     margin: 0;
     display: flex;
     flex-wrap: wrap;
-    gap: 15px;
+    gap: 12px;
 }
 
 header nav a {
-    color: #5c3a31;
+    display: inline-block;
+    padding: 10px 4px;
+    color: var(--color-heading);
     text-decoration: none;
-    font-weight: bold;
+    font-weight: 700;
 }
 
 .layout {
     max-width: 1200px;
     margin: 2rem auto;
-    padding: 0 1rem;
+    padding: 0 var(--page-pad);
 }
 
 .cards {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: var(--space-2);
 }
 
 section {
-    background-color: #ffffff;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
+    background-color: var(--color-surface);
+    padding: var(--space-3);
+    margin-bottom: var(--space-3);
     border-radius: 10px;
-    border: 1px solid #ebd0c5;
+    border: 1px solid var(--color-border);
+}
+
+section h2 {
+    margin: 0 0 var(--space-2);
+}
+
+form {
+    display: grid;
+    gap: var(--space-2);
+    max-width: 520px;
+}
+
+form div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+label {
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+input,
+select {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 12px;
+    font-family: inherit;
+    font-size: var(--fs-base);
+    color: var(--color-text);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-input-border);
+    border-radius: 8px;
+}
+
+::placeholder {
+    color: var(--color-text-muted);
+    opacity: 1;
+}
+
+/*
+ * Нечітка вимога: «має бути приємно додавати нові бажання».
+ * Інтерпретація: кнопка «Додати» - єдиний насичений теракотовий елемент
+ * форми (#A8442F, білий текст 5.94:1), тому головна дія помітна одразу
+ * й узгоджується з теплою палітрою сторінки. При hover кнопка темнішає
+ * (#8A3322, 8.15:1), підіймається на 2px і отримує тінь, а перехід 0.2s
+ * дає плавний відгук на дію. :focus-visible робить кнопку помітною
+ * при навігації з клавіатури, а prefers-reduced-motion прибирає рух
+ * для тих, хто вимкнув анімації.
+ */
+button {
+    justify-self: start;
+    min-height: 44px;
+    padding: 0 28px;
+    font-family: inherit;
+    font-size: var(--fs-base);
+    font-weight: 700;
+    color: #ffffff;
+    background-color: var(--color-primary);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button:hover {
+    background-color: var(--color-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(138, 51, 34, 0.35);
+}
+
+button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(138, 51, 34, 0.3);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+header nav a:focus-visible {
+    outline: 3px solid var(--color-heading);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    button {
+        transition: none;
+    }
+
+    button:hover,
+    button:active {
+        transform: none;
+    }
 }
 
 .wish-card {
-    background-color: #ffffff;
+    background-color: var(--color-surface);
     padding: 14px;
-    border: 1px solid #ebd0c5;
+    border: 1px solid var(--color-border);
     border-radius: 10px;
     box-shadow: 0 2px 5px rgba(212, 163, 115, 0.15);
 }
 
 .wish-card h3 {
-    margin-top: 0;
-    margin-bottom: 0.5rem;
-    color: #5c3a31;
+    margin: 0 0 4px;
+    font-weight: 500;
+}
+
+.wish-card p {
+    margin: 0;
+}
+
+.wish-card .price {
+    margin-bottom: 12px;
+}
+
+.price {
+    font-family: var(--font-body);
+    font-size: var(--fs-h2);
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--color-primary-dark);
+}
+
+.label {
+    color: var(--color-text-muted);
+}
+
+.priority-high,
+.priority-medium,
+.priority-low {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: var(--fs-small);
+    font-weight: 700;
+}
+
+.priority-high {
+    color: var(--color-priority-high);
+    background-color: var(--color-priority-high-bg);
+}
+
+.priority-medium {
+    color: var(--color-priority-medium);
+    background-color: var(--color-priority-medium-bg);
+}
+
+.priority-low {
+    color: var(--color-priority-low);
+    background-color: var(--color-priority-low-bg);
 }
 
 .wish-card img {
     border-radius: 6px;
-}
-
-.wish-card strong {
-    color: #d4a373;
 }
 
 .wish-card.is-purchased {
@@ -101,31 +299,44 @@ section {
 }
 
 aside {
-    background-color: #fff1e6;
-    border: 1px solid #f2cc8f;
+    background-color: var(--color-secondary-soft);
+    border: 1px solid var(--color-gold);
     border-radius: 10px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
+    padding: var(--space-3);
+    margin-bottom: var(--space-3);
     text-align: center;
 }
 
 aside h2 {
-    margin-top: 0;
-    color: #5c3a31;
+    margin: 0 0 var(--space-2);
+}
+
+aside p {
+    margin: 0 auto var(--space-2);
+}
+
+aside p:last-child {
+    margin-bottom: 0;
 }
 
 aside strong {
+    display: block;
     font-size: 1.8rem;
-    color: #d4a373;
+    line-height: 1.2;
+    color: var(--color-primary);
 }
 
 footer {
     text-align: center;
-    padding: 1.5rem 1rem;
-    font-size: 0.875rem;
-    color: #8c7a76;
-    border-top: 1px solid #ebd0c5;
+    padding: var(--space-3) var(--space-2);
+    font-size: var(--fs-small);
+    color: var(--color-text-muted);
+    border-top: 1px solid var(--color-border);
     margin-top: 3rem;
+}
+
+footer p {
+    margin-inline: auto;
 }
 
 @media (min-width: 600px) {
@@ -135,11 +346,14 @@ footer {
 }
 
 @media (min-width: 1024px) {
+    :root {
+        --page-pad: 2rem;
+    }
+
     .layout {
         display: grid;
         grid-template-columns: 3fr 1fr;
         gap: 24px;
-        padding: 0 2rem;
     }
 
     .cards {
