@@ -13,6 +13,7 @@
     --color-border-strong: #e2b29f;
     --color-gold: #f2cc8f;
     --color-input-border: #8c6f68;
+    --color-purchased-bg: #f4eeea;
 
     --color-text: #4a3e3d;
     --color-text-muted: #6b5b58;
@@ -52,7 +53,9 @@ body {
     background-color: var(--color-bg);
 }
 
-h1, h2, h3 {
+h1,
+h2,
+h3 {
     font-family: var(--font-heading);
     line-height: 1.25;
     color: var(--color-heading);
@@ -288,12 +291,24 @@ header nav a:focus-visible {
     border-radius: 6px;
 }
 
+/*
+ * Стан «куплено»: замість opacity (знижував контраст тексту до ~3.3:1)
+ * використано приглушений фон, пунктирну рамку, колір тексту #6B5B58
+ * (5.60:1 на #F4EEEA) і закреслену назву.
+ */
 .wish-card.is-purchased {
-    opacity: 0.6;
+    background-color: var(--color-purchased-bg);
+    border-style: dashed;
+    border-color: var(--color-border-strong);
 }
 
 .wish-card.is-purchased h3 {
+    color: var(--color-text-muted);
     text-decoration: line-through;
+}
+
+.wish-card.is-purchased .price {
+    color: var(--color-text-muted);
 }
 
 aside {
