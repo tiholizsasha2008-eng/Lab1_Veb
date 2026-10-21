@@ -262,9 +262,9 @@ header nav a:focus-visible {
     color: var(--color-text-muted);
 }
 
-.priority-high,
-.priority-medium,
-.priority-low {
+span.priority-high,
+span.priority-medium,
+span.priority-low {
     display: inline-block;
     padding: 2px 10px;
     border-radius: 999px;
@@ -272,19 +272,24 @@ header nav a:focus-visible {
     font-weight: 700;
 }
 
-.priority-high {
+span.priority-high {
     color: var(--color-priority-high);
     background-color: var(--color-priority-high-bg);
 }
 
-.priority-medium {
+span.priority-medium {
     color: var(--color-priority-medium);
     background-color: var(--color-priority-medium-bg);
 }
 
-.priority-low {
+span.priority-low {
     color: var(--color-priority-low);
     background-color: var(--color-priority-low-bg);
+}
+
+/* Картка з високим пріоритетом (клас додає script.js) */
+article.priority-high {
+    border-left: 4px solid var(--color-priority-high);
 }
 
 .wish-card img {
@@ -332,11 +337,17 @@ aside p:last-child {
     margin-bottom: 0;
 }
 
-aside strong {
+aside strong,
+#total-price {
     display: block;
     font-size: 1.8rem;
+    font-weight: 700;
     line-height: 1.2;
     color: var(--color-primary);
+}
+
+.summary-label {
+    margin-bottom: 0;
 }
 
 footer {
