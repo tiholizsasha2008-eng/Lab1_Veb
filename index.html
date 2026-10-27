@@ -33,21 +33,17 @@
 
                     <div>
                         <label for="wish-price">Орієнтовна ціна (грн):</label>
-                        <input type="number" id="wish-price" name="price" min="0" step="10" placeholder="2500" required>
+                        <input type="number" id="wish-price" name="price" min="0" step="1" placeholder="2500" required>
+                        <p class="field-error" id="price-error" aria-live="polite"></p>
                     </div>
 
                     <div>
                         <label for="wish-priority">Пріоритет:</label>
                         <select id="wish-priority" name="priority">
-                            <option value="high">Високий</option>
-                            <option value="medium" selected>Середній</option>
-                            <option value="low">Низький</option>
+                            <option value="високий">Високий</option>
+                            <option value="середній" selected>Середній</option>
+                            <option value="низький">Низький</option>
                         </select>
-                    </div>
-
-                    <div>
-                        <label for="wish-image">Зображення товару (URL):</label>
-                        <input type="url" id="wish-image" name="image" placeholder="https://example.com/image.jpg">
                     </div>
 
                     <button type="submit">Додати до списку</button>

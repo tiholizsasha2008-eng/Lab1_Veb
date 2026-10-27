@@ -179,7 +179,7 @@ select {
  * Інтерпретація: кнопка «Додати» - єдиний насичений теракотовий елемент
  * форми (#A8442F, білий текст 5.94:1), тому головна дія помітна одразу
  * й узгоджується з теплою палітрою сторінки. При hover кнопка темнішає
- * (#8A3322, 8.15:1), підіймається на 2px і отримує тінь, а перехід 0.2s
+ * (#8A3322, 8.14:1), підіймається на 2px і отримує тінь, а перехід 0.2s
  * дає плавний відгук на дію. :focus-visible робить кнопку помітною
  * при навігації з клавіатури, а prefers-reduced-motion прибирає рух
  * для тих, хто вимкнув анімації.
@@ -299,7 +299,7 @@ article.priority-high {
 /*
  * Стан «куплено»: замість opacity (знижував контраст тексту до ~3.3:1)
  * використано приглушений фон, пунктирну рамку, колір тексту #6B5B58
- * (5.60:1 на #F4EEEA) і закреслену назву.
+ * (5.59:1 на #F4EEEA) і закреслену назву.
  */
 .wish-card.is-purchased {
     background-color: var(--color-purchased-bg);
@@ -361,6 +361,32 @@ footer {
 
 footer p {
     margin-inline: auto;
+}
+
+/* Практична робота №8: помилка валідації, позначка пріоритету, select у картці */
+.field-error {
+    margin: 0;
+    font-size: var(--fs-small);
+    font-weight: 600;
+    color: var(--color-priority-high);
+}
+
+.field-error:empty {
+    display: none;
+}
+
+input[aria-invalid="true"] {
+    border-color: var(--color-priority-high);
+}
+
+.wish-card .priority-row {
+    margin-bottom: 8px;
+}
+
+.wish-card .priority-select {
+    min-height: 36px;
+    margin-top: 4px;
+    font-size: var(--fs-small);
 }
 
 @media (min-width: 600px) {
