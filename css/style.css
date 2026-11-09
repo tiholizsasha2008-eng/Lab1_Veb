@@ -389,6 +389,54 @@ input[aria-invalid="true"] {
     font-size: var(--fs-small);
 }
 
+/* Практична робота №9: блок із даними сервера, стан завантаження, повідомлення про помилку */
+[hidden] {
+    display: none !important;
+}
+
+.section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.section-head h2 {
+    margin: 0;
+}
+
+.api-status {
+    margin: 0 0 var(--space-2);
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.api-error {
+    margin: 0 0 var(--space-2);
+    padding: 12px 16px;
+    font-weight: 600;
+    color: var(--color-priority-high);
+    background-color: var(--color-priority-high-bg);
+    border: 1px solid var(--color-priority-high);
+    border-radius: 8px;
+}
+
+.purchase-status {
+    font-size: var(--fs-small);
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+button:disabled,
+button:disabled:hover {
+    background-color: var(--color-text-muted);
+    box-shadow: none;
+    transform: none;
+    cursor: not-allowed;
+}
+
 @media (min-width: 600px) {
     .cards {
         grid-template-columns: repeat(2, 1fr);
