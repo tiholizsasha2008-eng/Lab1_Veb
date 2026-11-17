@@ -1,4 +1,6 @@
-// script.js - практичні роботи №6-8, варіант 7: Список бажань
+const API_URL = 'https://jsonplaceholder.typicode.com/todos?userId=2';
+// Скільки бажань із відповіді показувати на сторінці
+const MAX_SERVER_ITEMS = 9;
 
 // Практична робота №7: прибираємо статичні картки-заглушки з index.html
 const staticCards = document.querySelectorAll('#wishlist .wish-card');
@@ -35,19 +37,28 @@ const wishlistSection = document.querySelector('#wishlist');
 const listContainer = wishlistSection.querySelector('.cards');
 console.log('Контейнер знайдено:', listContainer);
 
+// Створює спільну основу картки (article з заголовком h3).
+// Її використовують і власні бажання, і бажання із сервера
+function createCardBase(titleText) {
+    const card = document.createElement('article');
+    card.classList.add('wish-card');
+
+    const title = document.createElement('h3');
+    title.textContent = titleText;
+
+    card.append(title);
+    return card;
+}
+
 // Створює картку для кожного бажання з масиву і додає її в контейнер
 function renderWishes(items) {
     listContainer.innerHTML = '';
 
     items.forEach(wish => {
-        const card = document.createElement('article');
-        card.classList.add('wish-card');
+        const card = createCardBase(wish.title);
         card.dataset.id = wish.id;
         card.dataset.priority = wish.priority;
         card.classList.toggle('priority-high', wish.priority === 'високий');
-
-        const title = document.createElement('h3');
-        title.textContent = wish.title;
 
         const price = document.createElement('p');
         price.classList.add('price');
@@ -79,7 +90,7 @@ function renderWishes(items) {
         });
         select.value = wish.priority;
 
-        card.append(title, price, priorityRow, select);
+        card.append(price, priorityRow, select);
         listContainer.append(card);
     });
 
@@ -164,6 +175,100 @@ listContainer.addEventListener('change', event => {
 
     console.log(`Пріоритет «${wish.title}» змінено на: ${wish.priority}`);
 });
+
+// ---------- Практична робота №9: клієнт для API (fetch) ----------
+
+const serverContainer = document.querySelector('#server-cards');
+const apiStatus = document.querySelector('#api-status');
+const apiError = document.querySelector('#api-error');
+const refreshButton = document.querySelector('#refresh-btn');
+
+// Помилка HTTP-рівня: сервер відповів, але зі статусом поза діапазоном 200-299
+class HttpError extends Error {
+    constructor(status) {
+        super(`HTTP ${status}`);
+        this.status = status;
+    }
+}
+
+// Малює картки бажань, отриманих із сервера (completed - «вже придбано»)
+function renderServerWishes(items) {
+    serverContainer.innerHTML = '';
+
+    items.slice(0, MAX_SERVER_ITEMS).forEach(item => {
+        const card = createCardBase(item.title);
+        card.dataset.serverId = item.id;
+        card.classList.toggle('is-purchased', item.completed);
+
+        const status = document.createElement('p');
+        status.classList.add('purchase-status');
+        status.textContent = item.completed ? 'Вже придбано' : 'Ще не придбано';
+
+        card.append(status);
+        serverContainer.append(card);
+    });
+}
+
+// Вмикає або вимикає стан завантаження: текст і заблокована кнопка
+function showLoading(isLoading) {
+    apiStatus.hidden = !isLoading;
+    refreshButton.disabled = isLoading;
+    serverContainer.setAttribute('aria-busy', String(isLoading));
+}
+
+// Показує користувачу зрозуміле повідомлення про помилку
+function showError(message) {
+    apiError.textContent = message;
+    apiError.hidden = false;
+}
+
+// Завантажує бажання з API JSONPlaceholder (https://jsonplaceholder.typicode.com/todos?userId=2)
+// і виводить їх у DOM; помилки обробляються окремо для HTTP та мережі
+async function loadData() {
+    showLoading(true);
+    apiError.hidden = true;
+    serverContainer.innerHTML = '';
+
+    try {
+        const response = await fetch(API_URL);
+
+        // fetch не вважає 404/500 помилкою, тому перевіряємо response.ok вручну
+        if (!response.ok) {
+            throw new HttpError(response.status);
+        }
+
+        const data = await response.json();
+        console.log('Відповідь API:', data);
+
+        if (!Array.isArray(data)) {
+            throw new Error('Невірний формат відповіді API');
+        }
+
+        renderServerWishes(data);
+        if (data.length === 0) {
+            showError('Сервер не повернув жодного бажання');
+        }
+        console.log(`Отримано бажань: ${data.length}, показано: ${Math.min(data.length, MAX_SERVER_ITEMS)}`);
+    } catch (error) {
+        if (error instanceof HttpError) {
+            showError(`Сервер відповів помилкою (код ${error.status}). Спробуйте пізніше.`);
+        } else if (error instanceof TypeError) {
+            // fetch відхиляє Promise із TypeError, коли запит не дійшов до сервера
+            showError('Список бажань недоступний офлайн');
+        } else {
+            showError('Не вдалося обробити відповідь сервера. Спробуйте пізніше.');
+        }
+        console.error('Помилка завантаження:', error);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Кнопка «Оновити»: повторний запит без перезавантаження сторінки
+refreshButton.addEventListener('click', loadData);
+
+// Перший запит при завантаженні сторінки
+loadData();
 
 // ---------- Практична робота №6: цикли, умови, стрілкова функція ----------
 
