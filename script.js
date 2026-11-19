@@ -1,44 +1,134 @@
+// Практична робота №10. Фреймворк: Vue 3 (CDN, без збірки).
+// Причина вибору: шаблони схожі на звичайний HTML, а реактивність із коробки:
+// зміна стану в data() сама перемальовує список без ручного DOM-коду.
+
 const API_URL = 'https://jsonplaceholder.typicode.com/todos?userId=2';
 // Скільки бажань із відповіді показувати на сторінці
 const MAX_SERVER_ITEMS = 9;
 
-// Практична робота №7: прибираємо статичні картки-заглушки з index.html
-const staticCards = document.querySelectorAll('#wishlist .wish-card');
-staticCards.forEach(card => card.remove());
-console.log(`Видалено статичних карток: ${staticCards.length}`);
-
 console.log('script.js підключено');
 
-// Дані: масив бажань {id, title, price, priority}
-const wishes = [
-    { id: 1, title: 'Бездротові навушники', price: 3500, priority: 'високий' },
-    { id: 2, title: 'Механічна клавіатура', price: 2800, priority: 'середній' },
-    { id: 3, title: 'Настільна гра «Catan»', price: 1600, priority: 'низький' }
-];
+// ---------- Практична робота №10: компонент WishItem (Vue 3) ----------
+
+// Компонент однієї картки бажання. Дані отримує лише через props,
+// про дії повідомляє батьківському компоненту подіями $emit
+const WishItem = {
+    props: ['id', 'name', 'price', 'priority', 'purchased'],
+    emits: ['toggle', 'change-priority'],
+    data() {
+        return {
+            // Довідник пріоритетів (власний для компонента, без глобальних змінних)
+            priorities: [
+                { value: 'високий', label: 'Високий', cssClass: 'priority-high' },
+                { value: 'середній', label: 'Середній', cssClass: 'priority-medium' },
+                { value: 'низький', label: 'Низький', cssClass: 'priority-low' }
+            ]
+        };
+    },
+    computed: {
+        // Похідне значення: позначка поточного пріоритету (середній, якщо значення невідоме)
+        currentPriority() {
+            return this.priorities.find(p => p.value === this.priority) || this.priorities[1];
+        },
+        // Похідне значення: ціна у форматі «3 500 грн»
+        formattedPrice() {
+            return `${Number(this.price).toLocaleString('uk-UA')} грн`;
+        }
+    },
+    template: `
+        <article class="wish-card"
+                 :class="{ 'is-purchased': purchased, 'priority-high': priority === 'високий' }"
+                 :data-id="id"
+                 :data-priority="priority">
+            <h3>{{ name }}</h3>
+            <p class="price">{{ formattedPrice }}</p>
+            <p class="priority-row">
+                <span class="label">Пріоритет: </span>
+                <span class="badge" :class="currentPriority.cssClass">{{ currentPriority.label }}</span>
+            </p>
+            <select class="priority-select"
+                    :aria-label="'Змінити пріоритет: ' + name"
+                    :value="priority"
+                    @change="$emit('change-priority', id, $event.target.value)">
+                <option v-for="option in priorities" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                </option>
+            </select>
+            <label class="purchase-toggle">
+                <input type="checkbox"
+                       :aria-label="'Придбано: ' + name"
+                       :checked="purchased"
+                       @change="$emit('toggle', id)">
+                <span>Придбано</span>
+            </label>
+            <p class="purchase-status">{{ purchased ? 'Вже придбано' : 'Ще не придбано' }}</p>
+        </article>
+    `
+};
+
+// Кореневий застосунок: тут живе реактивний стан (масив бажань) і методи його зміни
+const app = Vue.createApp({
+    components: { WishItem },
+    data() {
+        return {
+            // Дані: масив бажань {id, title, price, priority, purchased}
+            wishes: [
+                { id: 1, title: 'Бездротові навушники', price: 3500, priority: 'високий', purchased: false },
+                { id: 2, title: 'Механічна клавіатура', price: 2800, priority: 'середній', purchased: false },
+                { id: 3, title: 'Настільна гра «Catan»', price: 1600, priority: 'низький', purchased: false }
+            ]
+        };
+    },
+    methods: {
+        // Обробник події toggle(id) від WishItem: перемикає «придбано».
+        // Vue сам відстежує зміну й перемальовує картку
+        toggleWish(id) {
+            const wish = this.wishes.find(item => item.id === id);
+            if (!wish) return;
+
+            wish.purchased = !wish.purchased;
+            console.log(`«${wish.title}»: ${wish.purchased ? 'придбано' : 'не придбано'}`);
+        },
+
+        // Обробник події change-priority(id, priority) від WishItem (практична №8)
+        changePriority(id, priority) {
+            const wish = this.wishes.find(item => item.id === id);
+            if (!wish) return;
+
+            wish.priority = priority;
+            console.log(`Пріоритет «${wish.title}» змінено на: ${wish.priority}`);
+        }
+    },
+    template: `
+        <div class="cards">
+            <wish-item v-for="wish in wishes"
+                       :key="wish.id"
+                       :id="wish.id"
+                       :name="wish.title"
+                       :price="wish.price"
+                       :priority="wish.priority"
+                       :purchased="wish.purchased"
+                       @toggle="toggleWish"
+                       @change-priority="changePriority"></wish-item>
+        </div>
+    `
+});
+
+// Монтуємо застосунок у контейнер розділу «Список бажаних речей»
+const vm = app.mount('#wishlist-app');
+
+// Реактивний масив зі стану Vue: старий код (підсумок, форма, логи) працює з ним як раніше,
+// а будь-яка зміна масиву автоматично перемальовує список
+const wishes = vm.wishes;
+console.log('Vue-застосунок змонтовано, бажань:', wishes.length);
 
 // Лічильник id для нових бажань
 let nextId = wishes.length + 1;
 
-// Довідники пріоритетів: клас позначки та текст
-const PRIORITIES = ['високий', 'середній', 'низький'];
-const PRIORITY_CLASS = {
-    'високий': 'priority-high',
-    'середній': 'priority-medium',
-    'низький': 'priority-low'
-};
-const PRIORITY_LABEL = {
-    'високий': 'Високий',
-    'середній': 'Середній',
-    'низький': 'Низький'
-};
-
-// Контейнер списку: розділ #wishlist, а в ньому блок .cards із сіткою карток
-const wishlistSection = document.querySelector('#wishlist');
-const listContainer = wishlistSection.querySelector('.cards');
-console.log('Контейнер знайдено:', listContainer);
+// ---------- Практична робота №7 (замінено компонентом WishItem у практичній №10) ----------
 
 // Створює спільну основу картки (article з заголовком h3).
-// Її використовують і власні бажання, і бажання із сервера
+// Її використовує рендер бажань із сервера (практична №9)
 function createCardBase(titleText) {
     const card = document.createElement('article');
     card.classList.add('wish-card');
@@ -50,52 +140,20 @@ function createCardBase(titleText) {
     return card;
 }
 
-// Створює картку для кожного бажання з масиву і додає її в контейнер
+/*
+ Практична №10: ручний рендер списку з практичної №7 замінено компонентом WishItem
+ з циклом v-for. Функцію renderWishes, статичні картки-заглушки та довідники
+ PRIORITIES / PRIORITY_CLASS / PRIORITY_LABEL більше не викликаємо.
+
 function renderWishes(items) {
     listContainer.innerHTML = '';
-
     items.forEach(wish => {
         const card = createCardBase(wish.title);
-        card.dataset.id = wish.id;
-        card.dataset.priority = wish.priority;
-        card.classList.toggle('priority-high', wish.priority === 'високий');
-
-        const price = document.createElement('p');
-        price.classList.add('price');
-        price.textContent = `${wish.price.toLocaleString('uk-UA')} грн`;
-
-        // Рядок із позначкою пріоритету
-        const priorityRow = document.createElement('p');
-        priorityRow.classList.add('priority-row');
-
-        const label = document.createElement('span');
-        label.classList.add('label');
-        label.textContent = 'Пріоритет: ';
-
-        const badge = document.createElement('span');
-        badge.classList.add('badge', PRIORITY_CLASS[wish.priority]);
-        badge.textContent = PRIORITY_LABEL[wish.priority];
-
-        priorityRow.append(label, badge);
-
-        // Список для зміни пріоритету вже доданого бажання
-        const select = document.createElement('select');
-        select.classList.add('priority-select');
-        select.setAttribute('aria-label', `Змінити пріоритет: ${wish.title}`);
-        PRIORITIES.forEach(value => {
-            const option = document.createElement('option');
-            option.value = value;
-            option.textContent = PRIORITY_LABEL[value];
-            select.append(option);
-        });
-        select.value = wish.priority;
-
-        card.append(price, priorityRow, select);
+        ...
         listContainer.append(card);
     });
-
-    console.log(`Відрендерено карток: ${items.length}`);
 }
+*/
 
 // Оновлює вже наявні елементи підсумку
 function updateSummary() {
@@ -104,8 +162,9 @@ function updateSummary() {
     document.querySelector('#summary strong').textContent = wishes.length;
 }
 
-renderWishes(wishes);
-updateSummary();
+// Автоматичний перерахунок підсумку: Vue відстежує масив wishes,
+// тому функція викликається знову при кожній його зміні
+Vue.watchEffect(updateSummary);
 
 // ---------- Практична робота №8: форма та події ----------
 
@@ -132,7 +191,8 @@ priceInput.addEventListener('input', () => {
 // Скидає власне повідомлення про помилку, коли користувач виправляє назву
 titleInput.addEventListener('input', () => titleInput.setCustomValidity(''));
 
-// Надсилання форми: без перезавантаження додає бажання в масив і перемальовує список
+// Надсилання форми: без перезавантаження додає бажання в реактивний масив;
+// список і підсумок Vue оновлює сам
 form.addEventListener('submit', event => {
     event.preventDefault();
 
@@ -147,34 +207,14 @@ form.addEventListener('submit', event => {
         return;
     }
 
-    wishes.push({ id: nextId++, title, price, priority });
-    renderWishes(wishes);
-    updateSummary();
+    wishes.push({ id: nextId++, title, price, priority, purchased: false });
     form.reset();
     priceError.textContent = '';
     console.log('Додано бажання:', wishes[wishes.length - 1]);
 });
 
-// Делегування: один обробник change на контейнері для всіх карток, у тому числі нових.
-// Перефарбовує позначку пріоритету без повного перерендеру списку
-listContainer.addEventListener('change', event => {
-    if (!event.target.matches('.priority-select')) return;
-
-    const select = event.target;
-    const card = select.closest('.wish-card');
-    const wish = wishes.find(item => item.id === Number(card.dataset.id));
-    if (!wish) return;
-
-    wish.priority = select.value;
-    card.dataset.priority = select.value;
-    card.classList.toggle('priority-high', select.value === 'високий');
-
-    const badge = card.querySelector('.badge');
-    badge.className = `badge ${PRIORITY_CLASS[select.value]}`;
-    badge.textContent = PRIORITY_LABEL[select.value];
-
-    console.log(`Пріоритет «${wish.title}» змінено на: ${wish.priority}`);
-});
+// Делегування події change із практичної №8 прибрано: зміну пріоритету
+// тепер обробляє подія change-priority компонента WishItem (метод changePriority)
 
 // ---------- Практична робота №9: клієнт для API (fetch) ----------
 
