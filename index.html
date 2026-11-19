@@ -39,6 +39,13 @@
                         <p class="field-error" id="price-error" aria-live="polite"></p>
                     </div>
 
+                    <!-- Практична №11: поле url з моделі даних варіанта -->
+                    <div>
+                        <label for="wish-url">Посилання на товар (необов’язково):</label>
+                        <input type="url" id="wish-url" name="url" placeholder="https://example.com/item">
+                        <p class="field-error" id="url-error" aria-live="polite"></p>
+                    </div>
+
                     <div>
                         <label for="wish-priority">Пріоритет:</label>
                         <select id="wish-priority" name="priority">
@@ -54,6 +61,9 @@
 
             <section id="wishlist">
                 <h2>Список бажаних речей</h2>
+
+                <!-- Практична №11: повідомлення, якщо сховище недоступне або запис не вдався -->
+                <p class="api-error" id="storage-error" role="alert" hidden></p>
 
                 <!-- Практична №10: сюди Vue монтує список компонентів WishItem
                      (статичні картки-заглушки видалено, їх замінено компонентом) -->
@@ -73,9 +83,9 @@
 
         <aside id="summary">
             <h2>Підсумкова вартість</h2>
-            <p>Загальна кількість бажань: <strong>3</strong></p>
+            <p>Загальна кількість бажань: <strong>0</strong></p>
             <p class="summary-label">Загальна необхідна сума:</p>
-            <p id="total-price">7&nbsp;900&nbsp;грн</p>
+            <p id="total-price">0&nbsp;грн</p>
         </aside>
     </div>
 

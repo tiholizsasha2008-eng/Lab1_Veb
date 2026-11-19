@@ -1,20 +1,191 @@
 // Практична робота №10. Фреймворк: Vue 3 (CDN, без збірки).
 // Причина вибору: шаблони схожі на звичайний HTML, а реактивність із коробки:
 // зміна стану в data() сама перемальовує список без ручного DOM-коду.
+// Практична робота №11: основне сховище — IndexedDB (object store «wishes»);
+// копія списку й прапорець міграції лежать у localStorage, без IndexedDB застосунок працює на localStorage.
 
 const API_URL = 'https://jsonplaceholder.typicode.com/todos?userId=2';
 // Скільки бажань із відповіді показувати на сторінці
 const MAX_SERVER_ITEMS = 9;
 
+// ---------- Практична робота №11: налаштування сховищ ----------
+
+// Ключ localStorage зі списком бажань (JSON-рядок)
+const LS_KEY = 'wishes';
+// Ключ-прапорець migrated=true: початкове завантаження (міграція чи стартові дані) вже виконано
+const MIGRATED_KEY = 'migrated';
+// IndexedDB: назва бази, версія й object store (keyPath — id)
+const DB_NAME = 'WishlistDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'wishes';
+
+// Модель даних одного бажання: { id, title, price, priority, url, purchased }
+// Початкові бажання для першого запуску, коли в сховищах ще нічого немає
+const DEFAULT_WISHES = [
+    { id: 1, title: 'Бездротові навушники', price: 3500, priority: 'високий', url: '', purchased: false },
+    { id: 2, title: 'Механічна клавіатура', price: 2800, priority: 'середній', url: '', purchased: false },
+    { id: 3, title: 'Настільна гра «Catan»', price: 1600, priority: 'низький', url: '', purchased: false }
+];
+
 console.log('script.js підключено');
+
+// ---------- Практична робота №11: localStorage ----------
+
+// Зберігає масив бажань у localStorage як JSON-рядок
+function saveToLocalStorage(items) {
+    try {
+        localStorage.setItem(LS_KEY, JSON.stringify(items));
+    } catch (error) {
+        console.error('Не вдалося записати в localStorage:', error);
+    }
+}
+
+// Читає масив бажань із localStorage; при пошкоджених даних повертає порожній масив
+function loadFromLocalStorage() {
+    try {
+        const raw = localStorage.getItem(LS_KEY);
+        const data = raw ? JSON.parse(raw) : [];
+        return Array.isArray(data) ? data : [];
+    } catch (error) {
+        console.error('Пошкоджені дані в localStorage:', error);
+        return [];
+    }
+}
+
+// Перевіряє прапорець: чи вже виконано початкове завантаження
+function isInitialized() {
+    try {
+        return localStorage.getItem(MIGRATED_KEY) === 'true';
+    } catch (error) {
+        return false;
+    }
+}
+
+// Ставить прапорець migrated=true, щоб міграція не повторювалася
+function markInitialized() {
+    try {
+        localStorage.setItem(MIGRATED_KEY, 'true');
+    } catch (error) {
+        console.error('Не вдалося записати прапорець міграції:', error);
+    }
+}
+
+// ---------- Практична робота №11: IndexedDB ----------
+
+// З'єднання з базою (заповнюється в initStorage після openDB)
+let db = null;
+
+// Відкриває базу WishlistDB; object store створюється лише в onupgradeneeded
+function openDB() {
+    return new Promise((resolve, reject) => {
+        if (!('indexedDB' in window)) {
+            reject(new Error('IndexedDB не підтримується'));
+            return;
+        }
+
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+        // Викликається, коли бази ще немає або її версія нижча за DB_VERSION
+        request.onupgradeneeded = event => {
+            const database = event.target.result;
+            if (!database.objectStoreNames.contains(STORE_NAME)) {
+                database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+            }
+        };
+
+        request.onsuccess = () => {
+            const database = request.result;
+            // Закриваємо з'єднання, якщо базу видаляють чи оновлюють (інша вкладка, DevTools)
+            database.onversionchange = () => database.close();
+            resolve(database);
+        };
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Додає бажання або замінює наявне з тим самим id (put, транзакція readwrite)
+function addItem(item) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        // {...item}: у Vue-об'єкта це Proxy, який IndexedDB не клонує, тому кладемо звичайну копію
+        tx.objectStore(STORE_NAME).put({ ...item });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+    });
+}
+
+// Оновлює бажання: put перезаписує запис за ключем id (наприклад, нове значення purchased)
+function updateItem(item) {
+    return addItem(item);
+}
+
+// Повертає всі бажання зі сховища (транзакція readonly)
+function getAllItems() {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const request = tx.objectStore(STORE_NAME).getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+// Видаляє бажання за id (транзакція readwrite)
+function deleteItem(id) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+    });
+}
+
+// Одноразова міграція: якщо сховище порожнє, а в localStorage є дані, переносимо їх через addItem.
+// Якщо даних немає ніде, при першому запуску записуємо початкові бажання.
+// Після цього ставимо прапорець migrated, щоб не повторювати при наступних запусках
+async function loadInitialData() {
+    let items = await getAllItems();
+
+    if (!isInitialized()) {
+        if (items.length === 0) {
+            const legacy = loadFromLocalStorage();
+            const source = legacy.length > 0 ? legacy : DEFAULT_WISHES;
+
+            for (const item of source) {
+                await addItem(item);
+            }
+
+            items = await getAllItems();
+            console.log(legacy.length > 0
+                ? `Міграція з localStorage: перенесено бажань: ${source.length}`
+                : `Перший запуск: записано початкових бажань: ${source.length}`);
+        }
+        markInitialized();
+    }
+
+    return items;
+}
+
+// Дані без IndexedDB: беремо список із localStorage (або початкові бажання при першому запуску)
+function loadFallbackData() {
+    let items = loadFromLocalStorage();
+
+    if (items.length === 0 && !isInitialized()) {
+        items = DEFAULT_WISHES.map(item => ({ ...item }));
+        markInitialized();
+    }
+
+    return items;
+}
 
 // ---------- Практична робота №10: компонент WishItem (Vue 3) ----------
 
 // Компонент однієї картки бажання. Дані отримує лише через props,
 // про дії повідомляє батьківському компоненту подіями $emit
 const WishItem = {
-    props: ['id', 'name', 'price', 'priority', 'purchased'],
-    emits: ['toggle', 'change-priority'],
+    props: ['id', 'name', 'price', 'priority', 'url', 'purchased'],
+    emits: ['toggle', 'change-priority', 'remove'],
     data() {
         return {
             // Довідник пріоритетів (власний для компонента, без глобальних змінних)
@@ -33,6 +204,15 @@ const WishItem = {
         // Похідне значення: ціна у форматі «3 500 грн»
         formattedPrice() {
             return `${Number(this.price).toLocaleString('uk-UA')} грн`;
+        },
+        // Похідне значення: посилання лише з протоколом http(s), інакше порожній рядок
+        safeUrl() {
+            try {
+                const parsed = new URL(this.url);
+                return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
+            } catch (error) {
+                return '';
+            }
         }
     },
     template: `
@@ -45,6 +225,10 @@ const WishItem = {
             <p class="priority-row">
                 <span class="label">Пріоритет: </span>
                 <span class="badge" :class="currentPriority.cssClass">{{ currentPriority.label }}</span>
+            </p>
+            <p v-if="safeUrl" class="wish-link">
+                <a :href="safeUrl" target="_blank" rel="noopener noreferrer"
+                   :aria-label="'Відкрити товар (нова вкладка): ' + name">Відкрити товар</a>
             </p>
             <select class="priority-select"
                     :aria-label="'Змінити пріоритет: ' + name"
@@ -62,6 +246,9 @@ const WishItem = {
                 <span>Придбано</span>
             </label>
             <p class="purchase-status">{{ purchased ? 'Вже придбано' : 'Ще не придбано' }}</p>
+            <button type="button" class="delete-btn"
+                    :aria-label="'Видалити: ' + name"
+                    @click="$emit('remove', id)">Видалити</button>
         </article>
     `
 };
@@ -71,35 +258,48 @@ const app = Vue.createApp({
     components: { WishItem },
     data() {
         return {
-            // Дані: масив бажань {id, title, price, priority, purchased}
-            wishes: [
-                { id: 1, title: 'Бездротові навушники', price: 3500, priority: 'високий', purchased: false },
-                { id: 2, title: 'Механічна клавіатура', price: 2800, priority: 'середній', purchased: false },
-                { id: 3, title: 'Настільна гра «Catan»', price: 1600, priority: 'низький', purchased: false }
-            ]
+            // Масив бажань {id, title, price, priority, url, purchased}; наповнюється зі сховища в initStorage
+            wishes: [],
+            // Чи завершилось початкове завантаження (щоб не показувати «Список порожній» до нього)
+            isLoaded: false
         };
     },
     methods: {
-        // Обробник події toggle(id) від WishItem: перемикає «придбано».
-        // Vue сам відстежує зміну й перемальовує картку
-        toggleWish(id) {
+        // Обробник події toggle(id) від WishItem: зберігає бажання з протилежним значенням purchased (put).
+        // Список після запису перечитується зі сховища
+        async toggleWish(id) {
             const wish = this.wishes.find(item => item.id === id);
             if (!wish) return;
 
-            wish.purchased = !wish.purchased;
-            console.log(`«${wish.title}»: ${wish.purchased ? 'придбано' : 'не придбано'}`);
+            const updated = { ...wish, purchased: !wish.purchased };
+            if (await saveWish(updated)) {
+                console.log(`«${updated.title}»: ${updated.purchased ? 'придбано' : 'не придбано'}`);
+            }
         },
 
         // Обробник події change-priority(id, priority) від WishItem (практична №8)
-        changePriority(id, priority) {
+        async changePriority(id, priority) {
             const wish = this.wishes.find(item => item.id === id);
             if (!wish) return;
 
-            wish.priority = priority;
-            console.log(`Пріоритет «${wish.title}» змінено на: ${wish.priority}`);
+            const updated = { ...wish, priority };
+            if (await saveWish(updated)) {
+                console.log(`Пріоритет «${updated.title}» змінено на: ${updated.priority}`);
+            }
+        },
+
+        // Обробник події remove(id) від WishItem: видаляє бажання зі сховища (delete)
+        async deleteWish(id) {
+            const wish = this.wishes.find(item => item.id === id);
+            if (!wish) return;
+
+            if (await removeWish(id)) {
+                console.log(`Видалено бажання: «${wish.title}»`);
+            }
         }
     },
     template: `
+        <p v-if="isLoaded && wishes.length === 0">Список порожній. Додайте перше бажання через форму.</p>
         <div class="cards">
             <wish-item v-for="wish in wishes"
                        :key="wish.id"
@@ -107,9 +307,11 @@ const app = Vue.createApp({
                        :name="wish.title"
                        :price="wish.price"
                        :priority="wish.priority"
+                       :url="wish.url"
                        :purchased="wish.purchased"
                        @toggle="toggleWish"
-                       @change-priority="changePriority"></wish-item>
+                       @change-priority="changePriority"
+                       @remove="deleteWish"></wish-item>
         </div>
     `
 });
@@ -120,10 +322,103 @@ const vm = app.mount('#wishlist-app');
 // Реактивний масив зі стану Vue: старий код (підсумок, форма, логи) працює з ним як раніше,
 // а будь-яка зміна масиву автоматично перемальовує список
 const wishes = vm.wishes;
-console.log('Vue-застосунок змонтовано, бажань:', wishes.length);
 
-// Лічильник id для нових бажань
-let nextId = wishes.length + 1;
+// ---------- Практична робота №11: шар збереження даних ----------
+
+const storageError = document.querySelector('#storage-error');
+
+// Показує користувачу повідомлення про проблему зі сховищем
+function showStorageError(message) {
+    storageError.textContent = message;
+    storageError.hidden = false;
+}
+
+// Ховає повідомлення про помилку
+function hideStorageError() {
+    storageError.hidden = true;
+}
+
+// Перечитує список із IndexedDB у реактивний масив і оновлює копію в localStorage;
+// Vue сам перемальовує картки, а Vue.watchEffect — підсумок
+async function refreshWishes() {
+    const items = await getAllItems();
+    wishes.splice(0, wishes.length, ...items);
+    saveToLocalStorage(wishes);
+}
+
+// Додає або оновлює бажання (put). Повертає true, якщо збереження вдалося.
+// Без IndexedDB змінює масив напряму й записує його в localStorage
+async function saveWish(wish) {
+    try {
+        if (db) {
+            await updateItem(wish);
+            await refreshWishes();
+            hideStorageError();
+        } else {
+            const index = wishes.findIndex(item => item.id === wish.id);
+            if (index === -1) {
+                wishes.push(wish);
+            } else {
+                wishes.splice(index, 1, wish);
+            }
+            saveToLocalStorage(wishes);
+        }
+        return true;
+    } catch (error) {
+        showStorageError('Не вдалося зберегти зміни у сховищі. Спробуйте ще раз.');
+        console.error('Помилка збереження:', error);
+        return false;
+    }
+}
+
+// Видаляє бажання за id (delete). Повертає true, якщо видалення вдалося
+async function removeWish(id) {
+    try {
+        if (db) {
+            await deleteItem(id);
+            await refreshWishes();
+            hideStorageError();
+        } else {
+            const index = wishes.findIndex(item => item.id === id);
+            if (index !== -1) {
+                wishes.splice(index, 1);
+            }
+            saveToLocalStorage(wishes);
+        }
+        return true;
+    } catch (error) {
+        showStorageError('Не вдалося видалити бажання зі сховища. Спробуйте ще раз.');
+        console.error('Помилка видалення:', error);
+        return false;
+    }
+}
+
+// Новий id: найбільший наявний + 1 (після видалень length + 1 давав би дублікати)
+function getNextId() {
+    return wishes.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+}
+
+// Початкове завантаження: відкриває IndexedDB, виконує міграцію й наповнює список.
+// Якщо базу відкрити не вдалося, показує повідомлення й працює з localStorage
+async function initStorage() {
+    let items;
+
+    try {
+        db = await openDB();
+        items = await loadInitialData();
+        console.log('IndexedDB відкрито, бажань у сховищі:', items.length);
+    } catch (error) {
+        db = null;
+        showStorageError('Не вдалося відкрити IndexedDB (можливо, приватний режим). Дані зберігаються лише в localStorage.');
+        console.error('Помилка відкриття IndexedDB:', error);
+        items = loadFallbackData();
+    }
+
+    wishes.splice(0, wishes.length, ...items);
+    saveToLocalStorage(wishes);
+    vm.isLoaded = true;
+    logWishesReport();
+}
 
 // ---------- Практична робота №7 (замінено компонентом WishItem у практичній №10) ----------
 
@@ -171,8 +466,20 @@ Vue.watchEffect(updateSummary);
 const form = document.querySelector('#add-wish form');
 const titleInput = document.querySelector('#wish-title');
 const priceInput = document.querySelector('#wish-price');
+const urlInput = document.querySelector('#wish-url');
 const prioritySelect = document.querySelector('#wish-priority');
 const priceError = document.querySelector('#price-error');
+const urlError = document.querySelector('#url-error');
+
+// Перевіряє, що рядок є посиланням із протоколом http або https
+function isHttpUrl(value) {
+    try {
+        const parsed = new URL(value);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch (error) {
+        return false;
+    }
+}
 
 // Додаткова валідація: від'ємна ціна дає власне повідомлення про помилку
 priceInput.addEventListener('input', () => {
@@ -191,14 +498,21 @@ priceInput.addEventListener('input', () => {
 // Скидає власне повідомлення про помилку, коли користувач виправляє назву
 titleInput.addEventListener('input', () => titleInput.setCustomValidity(''));
 
-// Надсилання форми: без перезавантаження додає бажання в реактивний масив;
-// список і підсумок Vue оновлює сам
-form.addEventListener('submit', event => {
+// Скидає повідомлення про помилку посилання, коли користувач його редагує
+urlInput.addEventListener('input', () => {
+    urlInput.setCustomValidity('');
+    urlError.textContent = '';
+});
+
+// Надсилання форми: без перезавантаження зберігає нове бажання в сховище (put);
+// список і підсумок після цього оновлюються автоматично
+form.addEventListener('submit', async event => {
     event.preventDefault();
 
     const title = titleInput.value.trim();
     const price = Number(priceInput.value);
     const priority = prioritySelect.value;
+    const url = urlInput.value.trim();
 
     // назва з самих пробілів проходить required, тому перевіряємо окремо
     if (title === '') {
@@ -207,10 +521,23 @@ form.addEventListener('submit', event => {
         return;
     }
 
-    wishes.push({ id: nextId++, title, price, priority, purchased: false });
+    // type="url" пропускає й небезпечні схеми (javascript:), тому дозволяємо лише http(s)
+    if (url !== '' && !isHttpUrl(url)) {
+        const message = 'Посилання має починатися з http:// або https://';
+        urlInput.setCustomValidity(message);
+        urlError.textContent = message;
+        urlInput.reportValidity();
+        return;
+    }
+
+    const wish = { id: getNextId(), title, price, priority, url, purchased: false };
+    const saved = await saveWish(wish);
+    if (!saved) return;
+
     form.reset();
     priceError.textContent = '';
-    console.log('Додано бажання:', wishes[wishes.length - 1]);
+    urlError.textContent = '';
+    console.log('Додано бажання:', wish);
 });
 
 // Делегування події change із практичної №8 прибрано: зміну пріоритету
@@ -312,9 +639,6 @@ loadData();
 
 // ---------- Практична робота №6: цикли, умови, стрілкова функція ----------
 
-console.log('Кількість бажань:', wishes.length);
-console.log(wishes);
-
 // Рахує загальну вартість усіх бажань циклом for
 function calculateTotal(items) {
     let total = 0;
@@ -323,9 +647,6 @@ function calculateTotal(items) {
     }
     return total;
 }
-
-const totalPrice = calculateTotal(wishes);
-console.log(`Загальна вартість ${wishes.length} бажань: ${totalPrice} грн`);
 
 // Позначає бажання з високим пріоритетом і повертає їх кількість
 function markHighPriority(items) {
@@ -341,17 +662,29 @@ function markHighPriority(items) {
     return highCount;
 }
 
-const highCount = markHighPriority(wishes);
-const highLabel = highCount > 0 ? 'є' : 'немає';
-console.log(`Бажань із високим пріоритетом: ${highCount} (${highLabel})`);
-
 // Перевіряє, чи ціна не перевищує бюджет (стрілкова функція)
 const withinBudget = (price, budget) => price <= budget;
 
-const budget = 3000;
-console.log(`Бюджет: ${budget} грн`);
+// Звіт практичної №6 у консоль; викликається після завантаження даних зі сховища
+function logWishesReport() {
+    console.log('Кількість бажань:', wishes.length);
+    console.log(wishes);
 
-for (const wish of wishes) {
-    const fits = withinBudget(wish.price, budget);
-    console.log(`${wish.title}: ${fits ? 'вкладається в бюджет' : 'перевищує бюджет'}`);
+    const totalPrice = calculateTotal(wishes);
+    console.log(`Загальна вартість ${wishes.length} бажань: ${totalPrice} грн`);
+
+    const highCount = markHighPriority(wishes);
+    const highLabel = highCount > 0 ? 'є' : 'немає';
+    console.log(`Бажань із високим пріоритетом: ${highCount} (${highLabel})`);
+
+    const budget = 3000;
+    console.log(`Бюджет: ${budget} грн`);
+
+    for (const wish of wishes) {
+        const fits = withinBudget(wish.price, budget);
+        console.log(`${wish.title}: ${fits ? 'вкладається в бюджет' : 'перевищує бюджет'}`);
+    }
 }
+
+// Запуск практичної №11: відкриваємо сховище й наповнюємо список
+initStorage();
