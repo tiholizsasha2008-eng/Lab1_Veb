@@ -3,6 +3,7 @@
 // зміна стану в data() сама перемальовує список без ручного DOM-коду.
 // Практична робота №11: основне сховище — IndexedDB (object store «wishes»);
 // копія списку й прапорець міграції лежать у localStorage, без IndexedDB застосунок працює на localStorage.
+// Практична робота №12: CSS-прогрес-бар «накопичено на купівлю» (transition по width) у компоненті WishItem.
 
 const API_URL = 'https://jsonplaceholder.typicode.com/todos?userId=2';
 // Скільки бажань із відповіді показувати на сторінці
@@ -19,12 +20,13 @@ const DB_NAME = 'WishlistDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'wishes';
 
-// Модель даних одного бажання: { id, title, price, priority, url, purchased }
+// Модель даних одного бажання: { id, title, price, priority, url, purchased, saved }
+// saved — накопичена на купівлю сума в грн (практична №12)
 // Початкові бажання для першого запуску, коли в сховищах ще нічого немає
 const DEFAULT_WISHES = [
-    { id: 1, title: 'Бездротові навушники', price: 3500, priority: 'високий', url: '', purchased: false },
-    { id: 2, title: 'Механічна клавіатура', price: 2800, priority: 'середній', url: '', purchased: false },
-    { id: 3, title: 'Настільна гра «Catan»', price: 1600, priority: 'низький', url: '', purchased: false }
+    { id: 1, title: 'Бездротові навушники', price: 3500, priority: 'високий', url: '', purchased: false, saved: 0 },
+    { id: 2, title: 'Механічна клавіатура', price: 2800, priority: 'середній', url: '', purchased: false, saved: 0 },
+    { id: 3, title: 'Настільна гра «Catan»', price: 1600, priority: 'низький', url: '', purchased: false, saved: 0 }
 ];
 
 console.log('script.js підключено');
@@ -115,7 +117,7 @@ function addItem(item) {
     });
 }
 
-// Оновлює бажання: put перезаписує запис за ключем id (наприклад, нове значення purchased)
+// Оновлює бажання: put перезаписує запис за ключем id (наприклад, нове значення purchased чи saved)
 function updateItem(item) {
     return addItem(item);
 }
@@ -184,8 +186,8 @@ function loadFallbackData() {
 // Компонент однієї картки бажання. Дані отримує лише через props,
 // про дії повідомляє батьківському компоненту подіями $emit
 const WishItem = {
-    props: ['id', 'name', 'price', 'priority', 'url', 'purchased'],
-    emits: ['toggle', 'change-priority', 'remove'],
+    props: ['id', 'name', 'price', 'priority', 'url', 'purchased', 'saved'],
+    emits: ['toggle', 'change-priority', 'remove', 'add-savings'],
     data() {
         return {
             // Довідник пріоритетів (власний для компонента, без глобальних змінних)
@@ -193,7 +195,11 @@ const WishItem = {
                 { value: 'високий', label: 'Високий', cssClass: 'priority-high' },
                 { value: 'середній', label: 'Середній', cssClass: 'priority-medium' },
                 { value: 'низький', label: 'Низький', cssClass: 'priority-low' }
-            ]
+            ],
+            // Практична №12: значення поля «Відкласти», текст помилки та ширина заповнення (0 до першого показу)
+            amount: null,
+            savingsError: '',
+            animatedPercent: 0
         };
     },
     computed: {
@@ -213,6 +219,46 @@ const WishItem = {
             } catch (error) {
                 return '';
             }
+        },
+        // Практична №12: накопичена сума (для старих записів без поля saved це 0)
+        savedAmount() {
+            return Math.max(0, Number(this.saved) || 0);
+        },
+        // Практична №12: відсоток «накопичено / ціна» від 0 до 100, обчислений з даних бажання
+        percent() {
+            const price = Number(this.price);
+            if (!(price > 0)) return 0;
+            return Math.min(100, Math.floor(this.savedAmount / price * 100));
+        },
+        // Практична №12: накопичена сума у форматі «1 750 грн»
+        formattedSaved() {
+            return `${this.savedAmount.toLocaleString('uk-UA')} грн`;
+        }
+    },
+    watch: {
+        // Практична №12: коли зі сховища приходить нова сума, нова ширина запускає CSS-перехід
+        percent(value) {
+            this.animatedPercent = value;
+        }
+    },
+    // Практична №12: після появи картки в DOM фіксуємо ширину 0, а потім ставимо реальну,
+    // тому перехід програється вже при першому показі
+    mounted() {
+        void this.$el.offsetWidth;
+        this.animatedPercent = this.percent;
+    },
+    methods: {
+        // Практична №12: обробник форми «Відкласти». Перевіряє суму й повідомляє батьківський компонент
+        submitSavings() {
+            const value = Number(this.amount);
+            if (!Number.isInteger(value) || value <= 0) {
+                this.savingsError = 'Введіть цілу суму більше нуля';
+                return;
+            }
+
+            this.savingsError = '';
+            this.$emit('add-savings', this.id, value);
+            this.amount = null;
         }
     },
     template: `
@@ -222,6 +268,26 @@ const WishItem = {
                  :data-priority="priority">
             <h3>{{ name }}</h3>
             <p class="price">{{ formattedPrice }}</p>
+            <div class="savings">
+                <p class="savings-text">Накопичено: {{ formattedSaved }} з {{ formattedPrice }} ({{ percent }}%)</p>
+                <div class="progress-bar"
+                     role="progressbar"
+                     :aria-valuenow="percent"
+                     aria-valuemin="0"
+                     aria-valuemax="100"
+                     :aria-label="'Накопичено на купівлю: ' + name">
+                    <div class="progress-bar__fill" :style="{ width: animatedPercent + '%' }"></div>
+                </div>
+                <p v-if="percent === 100" class="savings-done">Суму зібрано, можна купувати</p>
+                <form v-if="!purchased" class="savings-form" novalidate @submit.prevent="submitSavings">
+                    <input type="number" min="1" step="1" inputmode="numeric"
+                           placeholder="Сума, грн"
+                           :aria-label="'Скільки відкласти (грн): ' + name"
+                           v-model.number="amount">
+                    <button type="submit">Відкласти</button>
+                </form>
+                <p v-if="savingsError" class="savings-error" role="alert">{{ savingsError }}</p>
+            </div>
             <p class="priority-row">
                 <span class="label">Пріоритет: </span>
                 <span class="badge" :class="currentPriority.cssClass">{{ currentPriority.label }}</span>
@@ -258,7 +324,7 @@ const app = Vue.createApp({
     components: { WishItem },
     data() {
         return {
-            // Масив бажань {id, title, price, priority, url, purchased}; наповнюється зі сховища в initStorage
+            // Масив бажань {id, title, price, priority, url, purchased, saved}; наповнюється зі сховища в initStorage
             wishes: [],
             // Чи завершилось початкове завантаження (щоб не показувати «Список порожній» до нього)
             isLoaded: false
@@ -288,6 +354,19 @@ const app = Vue.createApp({
             }
         },
 
+        // Практична №12: обробник події add-savings(id, amount) від WishItem.
+        // Збільшує накопичену суму (не більше ціни) й зберігає її; після оновлення даних прогрес-бар сам анімується
+        async addSavings(id, amount) {
+            const wish = this.wishes.find(item => item.id === id);
+            if (!wish) return;
+
+            const current = Math.max(0, Number(wish.saved) || 0);
+            const updated = { ...wish, saved: Math.min(wish.price, current + amount) };
+            if (await saveWish(updated)) {
+                console.log(`«${updated.title}»: накопичено ${updated.saved} із ${updated.price} грн`);
+            }
+        },
+
         // Обробник події remove(id) від WishItem: видаляє бажання зі сховища (delete)
         async deleteWish(id) {
             const wish = this.wishes.find(item => item.id === id);
@@ -309,8 +388,10 @@ const app = Vue.createApp({
                        :priority="wish.priority"
                        :url="wish.url"
                        :purchased="wish.purchased"
+                       :saved="wish.saved"
                        @toggle="toggleWish"
                        @change-priority="changePriority"
+                       @add-savings="addSavings"
                        @remove="deleteWish"></wish-item>
         </div>
     `
@@ -530,7 +611,7 @@ form.addEventListener('submit', async event => {
         return;
     }
 
-    const wish = { id: getNextId(), title, price, priority, url, purchased: false };
+    const wish = { id: getNextId(), title, price, priority, url, purchased: false, saved: 0 };
     const saved = await saveWish(wish);
     if (!saved) return;
 
