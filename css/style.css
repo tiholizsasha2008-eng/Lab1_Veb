@@ -570,3 +570,32 @@ button:disabled:hover {
         transition: none;
     }
 }
+
+/* Практична №13: приховані елементи, активний пункт меню, посилання у картках */
+[hidden] {
+    display: none !important;
+}
+
+/* Поточний маршрут у меню виділено не лише кольором: жирний шрифт і підкреслення */
+nav a[aria-current="page"] {
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+.details-link,
+.back-link {
+    margin: var(--space-2, 0.5rem) 0;
+}
+
+.details-link a,
+.back-link a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+}
+
+.wish-url {
+    margin: var(--space-2, 0.5rem) 0;
+    overflow-wrap: anywhere;
+}

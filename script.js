@@ -4,6 +4,8 @@
 // Практична робота №11: основне сховище — IndexedDB (object store «wishes»);
 // копія списку й прапорець міграції лежать у localStorage, без IndexedDB застосунок працює на localStorage.
 // Практична робота №12: CSS-прогрес-бар «накопичено на купівлю» (transition по width) у компоненті WishItem.
+// Практична робота №13: SPA з hash-маршрутизацією (#/, #/purchased, #/wishes/:id): роутер власний, без фреймворку,
+// а картки малює той самий компонент WishItem.
 
 const API_URL = 'https://jsonplaceholder.typicode.com/todos?userId=2';
 // Скільки бажань із відповіді показувати на сторінці
@@ -184,9 +186,10 @@ function loadFallbackData() {
 // ---------- Практична робота №10: компонент WishItem (Vue 3) ----------
 
 // Компонент однієї картки бажання. Дані отримує лише через props,
-// про дії повідомляє батьківському компоненту подіями $emit
+// про дії повідомляє батьківському компоненту подіями $emit.
+// Практична №13: prop detailed вмикає режим сторінки деталей (повне посилання замість «Докладніше»)
 const WishItem = {
-    props: ['id', 'name', 'price', 'priority', 'url', 'purchased', 'saved'],
+    props: ['id', 'name', 'price', 'priority', 'url', 'purchased', 'saved', 'detailed'],
     emits: ['toggle', 'change-priority', 'remove', 'add-savings'],
     data() {
         return {
@@ -292,9 +295,14 @@ const WishItem = {
                 <span class="label">Пріоритет: </span>
                 <span class="badge" :class="currentPriority.cssClass">{{ currentPriority.label }}</span>
             </p>
-            <p v-if="safeUrl" class="wish-link">
+            <p v-if="safeUrl && !detailed" class="wish-link">
                 <a :href="safeUrl" target="_blank" rel="noopener noreferrer"
                    :aria-label="'Відкрити товар (нова вкладка): ' + name">Відкрити товар</a>
+            </p>
+            <p v-if="detailed" class="wish-url">
+                <span class="label">Посилання: </span>
+                <a v-if="safeUrl" :href="safeUrl" target="_blank" rel="noopener noreferrer">{{ safeUrl }}</a>
+                <span v-else>не вказано</span>
             </p>
             <select class="priority-select"
                     :aria-label="'Змінити пріоритет: ' + name"
@@ -312,6 +320,10 @@ const WishItem = {
                 <span>Придбано</span>
             </label>
             <p class="purchase-status">{{ purchased ? 'Вже придбано' : 'Ще не придбано' }}</p>
+            <p v-if="!detailed" class="details-link">
+                <a :href="'#/wishes/' + id" data-link
+                   :aria-label="'Докладніше про бажання: ' + name">Докладніше</a>
+            </p>
             <button type="button" class="delete-btn"
                     :aria-label="'Видалити: ' + name"
                     @click="$emit('remove', id)">Видалити</button>
@@ -319,16 +331,69 @@ const WishItem = {
     `
 };
 
-// Кореневий застосунок: тут живе реактивний стан (масив бажань) і методи його зміни
+// Кореневий застосунок: тут живе реактивний стан (масив бажань, поточний маршрут) і методи його зміни
 const app = Vue.createApp({
     components: { WishItem },
     data() {
         return {
             // Масив бажань {id, title, price, priority, url, purchased, saved}; наповнюється зі сховища в initStorage
             wishes: [],
-            // Чи завершилось початкове завантаження (щоб не показувати «Список порожній» до нього)
-            isLoaded: false
+            // Чи завершилось початкове завантаження (щоб не показувати «Не знайдено» до нього)
+            isLoaded: false,
+            // Практична №13: поточний маршрут {name, params}; його змінюють view-функції роутера
+            route: { name: 'home', params: {} }
         };
+    },
+    computed: {
+        // Практична №13: бажання зі сторінки деталей (id береться з адреси) або null, якщо такого немає
+        currentWish() {
+            return this.wishes.find(item => item.id === Number(this.route.params.id)) || null;
+        },
+        // Практична №13: що показати в контейнері: усі бажання, лише куплені або одне бажання
+        visibleWishes() {
+            if (this.route.name === 'purchased') {
+                return this.wishes.filter(item => item.purchased);
+            }
+            if (this.route.name === 'detail') {
+                return this.currentWish ? [this.currentWish] : [];
+            }
+            return this.wishes;
+        },
+        // Практична №13: чи є на сторінці картки; якщо ні, показуємо «Не знайдено»
+        showCards() {
+            if (this.route.name === 'detail') return this.currentWish !== null;
+            return this.route.name === 'home' || this.route.name === 'purchased';
+        },
+        // Практична №13: заголовок поточної сторінки
+        pageTitle() {
+            switch (this.route.name) {
+                case 'home': return 'Список бажаних речей';
+                case 'purchased': return 'Куплені бажання';
+                case 'detail': return this.isLoaded && !this.currentWish ? 'Не знайдено' : 'Деталі бажання';
+                default: return 'Не знайдено';
+            }
+        },
+        // Практична №13: текст, коли на сторінці немає карток
+        emptyMessage() {
+            return this.route.name === 'purchased'
+                ? 'Куплених бажань поки немає.'
+                : 'Список порожній. Додайте перше бажання через форму.';
+        },
+        // Практична №13: повідомлення сторінки «Не знайдено»
+        notFoundMessage() {
+            return this.route.name === 'detail'
+                ? 'Бажання з таким номером не знайдено.'
+                : 'Сторінку не знайдено.';
+        }
+    },
+    watch: {
+        // Практична №13: назва вкладки браузера відповідає поточній сторінці
+        pageTitle: {
+            immediate: true,
+            handler(value) {
+                document.title = `${value} — Список бажань`;
+            }
+        }
     },
     methods: {
         // Обробник події toggle(id) від WishItem: зберігає бажання з протилежним значенням purchased (put).
@@ -367,42 +432,194 @@ const app = Vue.createApp({
             }
         },
 
-        // Обробник події remove(id) від WishItem: видаляє бажання зі сховища (delete)
+        // Обробник події remove(id) від WishItem: видаляє бажання зі сховища (delete).
+        // Практична №13: зі сторінки деталей видаленого бажання повертаємось на головну
         async deleteWish(id) {
             const wish = this.wishes.find(item => item.id === id);
             if (!wish) return;
 
             if (await removeWish(id)) {
                 console.log(`Видалено бажання: «${wish.title}»`);
+                if (this.route.name === 'detail') {
+                    navigate('/');
+                }
             }
         }
     },
     template: `
-        <p v-if="isLoaded && wishes.length === 0">Список порожній. Додайте перше бажання через форму.</p>
-        <div class="cards">
-            <wish-item v-for="wish in wishes"
-                       :key="wish.id"
-                       :id="wish.id"
-                       :name="wish.title"
-                       :price="wish.price"
-                       :priority="wish.priority"
-                       :url="wish.url"
-                       :purchased="wish.purchased"
-                       :saved="wish.saved"
-                       @toggle="toggleWish"
-                       @change-priority="changePriority"
-                       @add-savings="addSavings"
-                       @remove="deleteWish"></wish-item>
-        </div>
+        <h2 id="page-title" tabindex="-1">{{ pageTitle }}</h2>
+        <p v-if="!isLoaded" role="status">Завантаження…</p>
+        <template v-else-if="showCards">
+            <p v-if="visibleWishes.length === 0">{{ emptyMessage }}</p>
+            <div class="cards">
+                <wish-item v-for="wish in visibleWishes"
+                           :key="wish.id"
+                           :id="wish.id"
+                           :name="wish.title"
+                           :price="wish.price"
+                           :priority="wish.priority"
+                           :url="wish.url"
+                           :purchased="wish.purchased"
+                           :saved="wish.saved"
+                           :detailed="route.name === 'detail'"
+                           @toggle="toggleWish"
+                           @change-priority="changePriority"
+                           @add-savings="addSavings"
+                           @remove="deleteWish"></wish-item>
+            </div>
+            <p v-if="route.name === 'detail'" class="back-link">
+                <a href="#/" data-link>← До списку бажань</a>
+            </p>
+        </template>
+        <template v-else>
+            <p>{{ notFoundMessage }}</p>
+            <p class="back-link"><a href="#/" data-link>На головну</a></p>
+        </template>
     `
 });
 
-// Монтуємо застосунок у контейнер розділу «Список бажаних речей»
+// Монтуємо застосунок у контейнер сторінки
 const vm = app.mount('#wishlist-app');
 
 // Реактивний масив зі стану Vue: старий код (підсумок, форма, логи) працює з ним як раніше,
 // а будь-яка зміна масиву автоматично перемальовує список
 const wishes = vm.wishes;
+
+// ---------- Практична робота №13: клієнтська маршрутизація (hash) ----------
+
+// Розділи, які показує лише головна сторінка: форма додавання та бажання із сервера
+const addWishSection = document.querySelector('#add-wish');
+const serverSection = document.querySelector('#server-wishes');
+
+// Перший показ сторінки не переносить фокус на заголовок
+let isFirstRender = true;
+
+// Показує або ховає статичні розділи головної сторінки
+function showHomeSections(isVisible) {
+    addWishSection.hidden = !isVisible;
+    serverSection.hidden = !isVisible;
+}
+
+// View «/»: усі бажання (картки малює компонент WishItem), форма й бажання із сервера
+function renderHome() {
+    vm.route = { name: 'home', params: {} };
+    showHomeSections(true);
+}
+
+// View «/purchased»: лише бажання з purchased: true
+function renderPurchased() {
+    vm.route = { name: 'purchased', params: {} };
+    showHomeSections(false);
+}
+
+// View «/wishes/:id»: деталі одного бажання; id приходить із адреси
+function renderWishDetail(params) {
+    vm.route = { name: 'detail', params };
+    showHomeSections(false);
+}
+
+// View для неіснуючого маршруту: сторінка «Не знайдено» з посиланням на головну
+function renderNotFound() {
+    vm.route = { name: 'notfound', params: {} };
+    showHomeSections(false);
+}
+
+// Таблиця маршрутів: шлях-патерн і view-функція, що показує відповідну «сторінку».
+// Сегмент :id — параметр, його значення matchRoute передає у view
+const routes = [
+    { path: '/', view: renderHome },
+    { path: '/purchased', view: renderPurchased },
+    { path: '/wishes/:id', view: renderWishDetail }
+];
+
+// Порівнює шлях із патернами з таблиці routes і витягує параметри (:id).
+// Повертає { view, params } або null, якщо маршруту немає
+function matchRoute(path) {
+    const pathParts = path.split('/').filter(Boolean);
+
+    for (const route of routes) {
+        const routeParts = route.path.split('/').filter(Boolean);
+        if (routeParts.length !== pathParts.length) continue;
+
+        const params = {};
+        const isMatch = routeParts.every((part, i) => {
+            if (part.startsWith(':')) {
+                params[part.slice(1)] = pathParts[i];
+                return true;
+            }
+            return part === pathParts[i];
+        });
+
+        if (isMatch) return { view: route.view, params };
+    }
+
+    return null;
+}
+
+// Поточний шлях із hash: «#/purchased» → «/purchased», порожній hash → «/»
+function getCurrentPath() {
+    const path = location.hash.slice(1);
+    return path === '' ? '/' : path;
+}
+
+// Позначає в меню поточну сторінку атрибутом aria-current
+function updateNavigation(path) {
+    document.querySelectorAll('nav a[data-link]').forEach(link => {
+        if (link.getAttribute('href') === `#${path}`) {
+            link.setAttribute('aria-current', 'page');
+        } else {
+            link.removeAttribute('aria-current');
+        }
+    });
+}
+
+// Визначає маршрут за адресою, викликає його view і оновлює меню;
+// після переходу фокус переходить на заголовок сторінки
+function renderRoute() {
+    const path = getCurrentPath();
+    const match = matchRoute(path);
+
+    if (match) {
+        match.view(match.params);
+    } else {
+        renderNotFound();
+    }
+
+    updateNavigation(path);
+    console.log(`Маршрут: ${path}${match ? '' : ' (не знайдено)'}`);
+
+    if (!isFirstRender) {
+        Vue.nextTick(() => {
+            const heading = document.querySelector('#page-title');
+            if (heading) heading.focus();
+        });
+    }
+    isFirstRender = false;
+}
+
+// Клієнтська навігація: змінює hash (це викликає hashchange), а для поточного маршруту просто перемальовує його
+function navigate(path) {
+    if (getCurrentPath() === path) {
+        renderRoute();
+        return;
+    }
+    location.hash = path;
+}
+
+// Делегування кліків: усі посилання з data-link (меню, картки, Vue-шаблони) працюють без перезавантаження
+document.addEventListener('click', event => {
+    const link = event.target.closest('a[data-link]');
+    if (!link) return;
+
+    // Ctrl/Cmd/Shift-клік і не ліва кнопка відкривають посилання по-своєму, їх не перехоплюємо
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+    event.preventDefault();
+    navigate(link.getAttribute('href').slice(1));
+});
+
+// Кнопки «назад»/«вперед» і ручна зміна адреси: перемальовуємо вміст відповідно до нового hash
+window.addEventListener('hashchange', renderRoute);
 
 // ---------- Практична робота №11: шар збереження даних ----------
 
@@ -520,6 +737,7 @@ function createCardBase(titleText) {
  Практична №10: ручний рендер списку з практичної №7 замінено компонентом WishItem
  з циклом v-for. Функцію renderWishes, статичні картки-заглушки та довідники
  PRIORITIES / PRIORITY_CLASS / PRIORITY_LABEL більше не викликаємо.
+ Практична №13: цей самий компонент використовують усі маршрути.
 
 function renderWishes(items) {
     listContainer.innerHTML = '';
@@ -767,5 +985,6 @@ function logWishesReport() {
     }
 }
 
-// Запуск практичної №11: відкриваємо сховище й наповнюємо список
+// Запуск: визначаємо маршрут за адресою (практична №13), відкриваємо сховище й наповнюємо список (практична №11)
+renderRoute();
 initStorage();
