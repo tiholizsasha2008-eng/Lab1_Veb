@@ -6,8 +6,10 @@
 // Практична робота №12: CSS-прогрес-бар «накопичено на купівлю» (transition по width) у компоненті WishItem.
 // Практична робота №13: SPA з hash-маршрутизацією (#/, #/purchased, #/wishes/:id): роутер власний, без фреймворку,
 // а картки малює той самий компонент WishItem.
+// Практична робота №14: «Бажання із сервера» віддає власний Node.js-сервер (Express) за адресою /api/wishes.
 
-const API_URL = 'https://jsonplaceholder.typicode.com/todos?userId=2';
+// Практична №14: ендпоінт власного сервера (той самий origin, що й застосунок, тому адреса відносна)
+const API_URL = '/api/wishes';
 // Скільки бажань із відповіді показувати на сторінці
 const MAX_SERVER_ITEMS = 9;
 
@@ -842,7 +844,7 @@ form.addEventListener('submit', async event => {
 // Делегування події change із практичної №8 прибрано: зміну пріоритету
 // тепер обробляє подія change-priority компонента WishItem (метод changePriority)
 
-// ---------- Практична робота №9: клієнт для API (fetch) ----------
+// ---------- Практична робота №9: клієнт для API (fetch); у практичній №14 — власний Node.js-сервер ----------
 
 const serverContainer = document.querySelector('#server-cards');
 const apiStatus = document.querySelector('#api-status');
@@ -857,20 +859,24 @@ class HttpError extends Error {
     }
 }
 
-// Малює картки бажань, отриманих із сервера (completed - «вже придбано»)
+// Малює картки бажань, отриманих із власного сервера (purchased - «вже придбано»)
 function renderServerWishes(items) {
     serverContainer.innerHTML = '';
 
     items.slice(0, MAX_SERVER_ITEMS).forEach(item => {
         const card = createCardBase(item.title);
         card.dataset.serverId = item.id;
-        card.classList.toggle('is-purchased', item.completed);
+        card.classList.toggle('is-purchased', item.purchased === true);
+
+        const price = document.createElement('p');
+        price.classList.add('price');
+        price.textContent = `${Number(item.price).toLocaleString('uk-UA')} грн`;
 
         const status = document.createElement('p');
         status.classList.add('purchase-status');
-        status.textContent = item.completed ? 'Вже придбано' : 'Ще не придбано';
+        status.textContent = item.purchased === true ? 'Вже придбано' : 'Ще не придбано';
 
-        card.append(status);
+        card.append(price, status);
         serverContainer.append(card);
     });
 }
@@ -888,8 +894,8 @@ function showError(message) {
     apiError.hidden = false;
 }
 
-// Завантажує бажання з API JSONPlaceholder (https://jsonplaceholder.typicode.com/todos?userId=2)
-// і виводить їх у DOM; помилки обробляються окремо для HTTP та мережі
+// Завантажує бажання з власного Node.js-сервера (GET /api/wishes) і виводить їх у DOM;
+// помилки обробляються окремо для HTTP та мережі
 async function loadData() {
     showLoading(true);
     apiError.hidden = true;

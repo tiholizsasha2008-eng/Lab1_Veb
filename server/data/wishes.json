@@ -1,0 +1,10 @@
+[
+  { "id": 1, "title": "Бездротові навушники", "price": 3500, "priority": "високий", "url": "https://example.com/wishes/headphones", "purchased": true },
+  { "id": 2, "title": "Механічна клавіатура", "price": 2800, "priority": "середній", "url": "https://example.com/wishes/keyboard", "purchased": false },
+  { "id": 3, "title": "Настільна гра «Catan»", "price": 1600, "priority": "низький", "url": "", "purchased": false },
+  { "id": 4, "title": "Рюкзак для ноутбука", "price": 1900, "priority": "середній", "url": "https://example.com/wishes/backpack", "purchased": false },
+  { "id": 5, "title": "Портативний SSD 1 ТБ", "price": 4200, "priority": "високий", "url": "https://example.com/wishes/ssd", "purchased": true },
+  { "id": 6, "title": "Електронна книга", "price": 5600, "priority": "низький", "url": "", "purchased": false },
+  { "id": 7, "title": "Ігрова миша", "price": 1450, "priority": "середній", "url": "https://example.com/wishes/mouse", "purchased": true },
+  { "id": 8, "title": "Монітор 27 дюймів", "price": 9800, "priority": "високий", "url": "https://example.com/wishes/monitor", "purchased": false }
+]
